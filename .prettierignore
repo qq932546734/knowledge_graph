@@ -1,0 +1,11 @@
+.next
+node_modules
+coverage
+public
+prisma/migrations
+PLAN.md
+TODO.md
+Dockerfile
+deploy/nginx/nginx.conf
+test-results
+playwright-report
