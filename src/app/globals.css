@@ -349,6 +349,8 @@ article.rounded-xl {
   line-height: 1.7;
   word-break: break-word;
   color: var(--muted-strong);
+  font-size: 0.97rem;
+  max-inline-size: 70ch;
 }
 
 .markdown h1,
@@ -377,6 +379,41 @@ article.rounded-xl {
   font-size: 1.05rem;
 }
 
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  scroll-margin-top: 5.5rem;
+}
+
+.markdown-heading-anchor {
+  margin-right: 0.35rem;
+  color: color-mix(in srgb, var(--primary) 68%, #0a2f4c);
+  text-decoration: none;
+  opacity: 0;
+  border-radius: 4px;
+  transition:
+    opacity var(--motion-fast) var(--motion-ease-out),
+    box-shadow var(--motion-fast) var(--motion-ease-out);
+}
+
+.markdown h1:hover .markdown-heading-anchor,
+.markdown h2:hover .markdown-heading-anchor,
+.markdown h3:hover .markdown-heading-anchor,
+.markdown h4:hover .markdown-heading-anchor,
+.markdown h5:hover .markdown-heading-anchor,
+.markdown h6:hover .markdown-heading-anchor {
+  opacity: 1;
+}
+
+.markdown-heading-anchor:focus-visible {
+  opacity: 1;
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
 .markdown p,
 .markdown ul,
 .markdown ol,
@@ -385,9 +422,57 @@ article.rounded-xl {
   margin: 0.75em 0;
 }
 
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
 .markdown ul,
 .markdown ol {
   padding-left: 1.4rem;
+  list-style-position: outside;
+}
+
+.markdown ul {
+  list-style-type: disc;
+}
+
+.markdown ol {
+  list-style-type: decimal;
+}
+
+.markdown ul ul {
+  list-style-type: circle;
+}
+
+.markdown ul ul ul {
+  list-style-type: square;
+}
+
+.markdown ol ol {
+  list-style-type: lower-alpha;
+}
+
+.markdown ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin-top: 0.25rem;
+  margin-bottom: 0.1rem;
+}
+
+.markdown li::marker {
+  color: color-mix(in srgb, var(--muted-2) 80%, var(--primary));
+}
+
+/* Keep GFM task lists clean (checkbox only, no extra marker). */
+.markdown li.task-list-item {
+  list-style: none;
 }
 
 .markdown li + li {
@@ -409,18 +494,36 @@ article.rounded-xl {
   text-underline-offset: 2px;
 }
 
+.markdown a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.markdown a:focus-visible {
+  outline: 0;
+  border-radius: 4px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
 .markdown hr {
   border: 0;
   border-top: 1px solid var(--border);
   margin: 1.1rem 0;
 }
 
+.markdown-table-wrap {
+  margin: 0.9rem 0;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
 .markdown table {
   width: 100%;
+  min-width: 36rem;
   border-collapse: collapse;
-  margin: 0.9rem 0;
-  overflow: hidden;
-  border-radius: 8px;
+  margin: 0;
 }
 
 .markdown th,
@@ -434,6 +537,14 @@ article.rounded-xl {
 .markdown th {
   background: var(--surface-soft);
   font-weight: 600;
+}
+
+.markdown tbody tr:nth-child(odd) {
+  background: color-mix(in srgb, var(--surface-soft) 52%, var(--surface));
+}
+
+.markdown tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-soft) 80%, var(--surface));
 }
 
 .markdown img {
@@ -453,10 +564,10 @@ article.rounded-xl {
 }
 
 .markdown pre {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-soft) 70%, #f6f8fa);
   overflow-x: auto;
+  margin: 0;
+  border-radius: 0 0 10px 10px;
+  background: color-mix(in srgb, var(--surface-soft) 70%, #f6f8fa);
   padding: 0.9em;
   line-height: 1.5;
 }
@@ -467,6 +578,82 @@ article.rounded-xl {
   padding: 0;
 }
 
+.markdown .katex {
+  font-size: 1em;
+}
+
+.markdown .katex-display {
+  margin: 1rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2rem 0.1rem;
+}
+
+.markdown-codeblock {
+  margin: 0.9rem 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.markdown-codeblock-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-soft) 82%, #f8fbfd);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--muted-2);
+  text-transform: lowercase;
+}
+
+.markdown-codeblock-meta button {
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 0 0.55rem;
+  font-size: 0.75rem;
+  color: var(--muted-strong);
+}
+
 .markdown input[type="checkbox"] {
-  margin-right: 0.35rem;
+  margin: 0 0.45rem 0 0;
+  transform: translateY(1px);
+  accent-color: var(--primary);
+}
+
+.markdown-toc {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 0.75rem;
+}
+
+.markdown-toc-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted-2);
+}
+
+.markdown-toc-list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.markdown-toc-list li + li {
+  margin-top: 0.28rem;
+}
+
+.markdown-toc-list a {
+  color: var(--muted-strong);
+  text-decoration: none;
+}
+
+.markdown-toc-list a:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }

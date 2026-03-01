@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { apiFetch } from "@/lib/client/api";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 type NodePayload = {
@@ -63,15 +64,7 @@ export default function NodeEditorClient({ nodeId }: { nodeId?: string }) {
   const [saving, setSaving] = useState(false);
   const [relationBusy, setRelationBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editorMobileTab, setEditorMobileTab] = useState<"edit" | "preview">("edit");
-  const [questionEditorMobileTab, setQuestionEditorMobileTab] = useState<"edit" | "preview">(
-    "edit",
-  );
-  const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
-
-  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const questionAnswerTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const tags = useMemo(
     () =>
@@ -178,20 +171,6 @@ export default function NodeEditorClient({ nodeId }: { nodeId?: string }) {
     void loadNode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const syncLayout = () => {
-      setIsMobileLayout(window.innerWidth < 768);
-    };
-
-    syncLayout();
-    window.addEventListener("resize", syncLayout);
-    return () => window.removeEventListener("resize", syncLayout);
-  }, []);
 
   useEffect(() => {
     if (!expandedQuestionId) {
@@ -350,34 +329,6 @@ export default function NodeEditorClient({ nodeId }: { nodeId?: string }) {
     }
   }
 
-  function insertMarkdownSnippet(
-    textarea: HTMLTextAreaElement | null,
-    value: string,
-    setValue: (next: string) => void,
-    prefix: string,
-    suffix = "",
-    placeholder = "内容",
-  ) {
-    if (!textarea) {
-      setValue(`${value}${prefix}${placeholder}${suffix}`);
-      return;
-    }
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = value.slice(start, end);
-    const wrappedText = `${prefix}${selectedText || placeholder}${suffix}`;
-    const nextValue = `${value.slice(0, start)}${wrappedText}${value.slice(end)}`;
-    setValue(nextValue);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      const cursorStart = start + prefix.length;
-      const cursorEnd = cursorStart + (selectedText || placeholder).length;
-      textarea.setSelectionRange(cursorStart, cursorEnd);
-    });
-  }
-
   function toggleQuestionAnswer(questionId: string) {
     setExpandedQuestionId((current) => (current === questionId ? null : questionId));
   }
@@ -463,150 +414,18 @@ export default function NodeEditorClient({ nodeId }: { nodeId?: string }) {
           />
         </label>
 
-        <section className="mt-3 panel-soft">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">Markdown 正文</p>
-            <p className="text-xs text-muted-2">快捷键: Cmd/Ctrl + Enter 保存</p>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              className="btn-secondary h-9 px-3 text-sm"
-              onClick={() =>
-                insertMarkdownSnippet(
-                  contentTextareaRef.current,
-                  contentMd,
-                  setContentMd,
-                  "## ",
-                  "",
-                  "二级标题",
-                )
-              }
-            >
-              标题
-            </button>
-            <button
-              className="btn-secondary h-9 px-3 text-sm"
-              onClick={() =>
-                insertMarkdownSnippet(
-                  contentTextareaRef.current,
-                  contentMd,
-                  setContentMd,
-                  "- ",
-                  "",
-                  "列表项",
-                )
-              }
-            >
-              列表
-            </button>
-            <button
-              className="btn-secondary h-9 px-3 text-sm"
-              onClick={() =>
-                insertMarkdownSnippet(
-                  contentTextareaRef.current,
-                  contentMd,
-                  setContentMd,
-                  "```\n",
-                  "\n```",
-                  "code",
-                )
-              }
-            >
-              代码块
-            </button>
-            <button
-              className="btn-secondary h-9 px-3 text-sm"
-              onClick={() =>
-                insertMarkdownSnippet(
-                  contentTextareaRef.current,
-                  contentMd,
-                  setContentMd,
-                  "> ",
-                  "",
-                  "引用",
-                )
-              }
-            >
-              引用
-            </button>
-          </div>
-
-          {isMobileLayout ? (
-            <div className="mt-3 space-y-3">
-              <div className="flex w-fit rounded-lg border border-border bg-surface p-1">
-                <button
-                  className={`h-9 rounded-md px-3 text-sm transition-colors ${
-                    editorMobileTab === "edit"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-strong hover:bg-surface-soft"
-                  }`}
-                  onClick={() => setEditorMobileTab("edit")}
-                >
-                  编辑
-                </button>
-                <button
-                  className={`h-9 rounded-md px-3 text-sm transition-colors ${
-                    editorMobileTab === "preview"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-strong hover:bg-surface-soft"
-                  }`}
-                  onClick={() => setEditorMobileTab("preview")}
-                >
-                  预览
-                </button>
-              </div>
-
-              {editorMobileTab === "edit" ? (
-                <textarea
-                  ref={contentTextareaRef}
-                  className="min-h-[48vh] w-full resize-y panel-soft font-mono text-sm leading-6 sm:min-h-[54vh]"
-                  placeholder="支持 Markdown：# 标题、- 列表、``` 代码块、> 引用..."
-                  value={contentMd}
-                  onChange={(event) => setContentMd(event.target.value)}
-                  spellCheck={false}
-                  onKeyDown={(event) => {
-                    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                      event.preventDefault();
-                      void saveNode();
-                    }
-                  }}
-                />
-              ) : (
-                <div className="min-h-[48vh] panel-soft text-sm sm:min-h-[54vh]">
-                  {contentMd.trim() ? (
-                    <MarkdownRenderer>{contentMd}</MarkdownRenderer>
-                  ) : (
-                    <p className="text-muted-2">暂无内容</p>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-              <textarea
-                ref={contentTextareaRef}
-                className="min-h-[68vh] w-full resize-y panel-soft font-mono text-sm leading-6"
-                placeholder="支持 Markdown：# 标题、- 列表、``` 代码块、> 引用..."
-                value={contentMd}
-                onChange={(event) => setContentMd(event.target.value)}
-                spellCheck={false}
-                onKeyDown={(event) => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                    event.preventDefault();
-                    void saveNode();
-                  }
-                }}
-              />
-              <div className="min-h-[68vh] panel-soft text-sm">
-                {contentMd.trim() ? (
-                  <MarkdownRenderer>{contentMd}</MarkdownRenderer>
-                ) : (
-                  <p className="text-muted-2">暂无内容</p>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
+        <MarkdownEditor
+          className="mt-3"
+          value={contentMd}
+          onChange={setContentMd}
+          placeholder="支持 Markdown：# 标题、- 列表、``` 代码块、> 引用、$ 行内公式、$$ 块公式..."
+          submitHint="快捷键: Cmd/Ctrl + Enter 保存，Cmd/Ctrl + B 粗体，Tab 缩进"
+          onSubmit={() => {
+            void saveNode();
+          }}
+          mobileMinHeightClass="min-h-[48vh] sm:min-h-[54vh]"
+          desktopMinHeightClass="min-h-[68vh]"
+        />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -734,150 +553,18 @@ export default function NodeEditorClient({ nodeId }: { nodeId?: string }) {
               />
             </div>
 
-            <section className="mt-2 panel-soft">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">参考答案（Markdown）</p>
-                <p className="text-xs text-muted-2">快捷键: Cmd/Ctrl + Enter 添加题目</p>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  className="btn-secondary h-9 px-3 text-sm"
-                  onClick={() =>
-                    insertMarkdownSnippet(
-                      questionAnswerTextareaRef.current,
-                      newAnswer,
-                      setNewAnswer,
-                      "## ",
-                      "",
-                      "二级标题",
-                    )
-                  }
-                >
-                  标题
-                </button>
-                <button
-                  className="btn-secondary h-9 px-3 text-sm"
-                  onClick={() =>
-                    insertMarkdownSnippet(
-                      questionAnswerTextareaRef.current,
-                      newAnswer,
-                      setNewAnswer,
-                      "- ",
-                      "",
-                      "列表项",
-                    )
-                  }
-                >
-                  列表
-                </button>
-                <button
-                  className="btn-secondary h-9 px-3 text-sm"
-                  onClick={() =>
-                    insertMarkdownSnippet(
-                      questionAnswerTextareaRef.current,
-                      newAnswer,
-                      setNewAnswer,
-                      "```\n",
-                      "\n```",
-                      "code",
-                    )
-                  }
-                >
-                  代码块
-                </button>
-                <button
-                  className="btn-secondary h-9 px-3 text-sm"
-                  onClick={() =>
-                    insertMarkdownSnippet(
-                      questionAnswerTextareaRef.current,
-                      newAnswer,
-                      setNewAnswer,
-                      "> ",
-                      "",
-                      "引用",
-                    )
-                  }
-                >
-                  引用
-                </button>
-              </div>
-
-              {isMobileLayout ? (
-                <div className="mt-3 space-y-3">
-                  <div className="flex w-fit rounded-lg border border-border bg-surface p-1">
-                    <button
-                      className={`h-9 rounded-md px-3 text-sm transition-colors ${
-                        questionEditorMobileTab === "edit"
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-strong hover:bg-surface-soft"
-                      }`}
-                      onClick={() => setQuestionEditorMobileTab("edit")}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      className={`h-9 rounded-md px-3 text-sm transition-colors ${
-                        questionEditorMobileTab === "preview"
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-strong hover:bg-surface-soft"
-                      }`}
-                      onClick={() => setQuestionEditorMobileTab("preview")}
-                    >
-                      预览
-                    </button>
-                  </div>
-
-                  {questionEditorMobileTab === "edit" ? (
-                    <textarea
-                      ref={questionAnswerTextareaRef}
-                      className="min-h-[32vh] w-full resize-y panel-soft font-mono text-sm leading-6 sm:min-h-[38vh]"
-                      placeholder="参考答案（Markdown）"
-                      value={newAnswer}
-                      onChange={(event) => setNewAnswer(event.target.value)}
-                      spellCheck={false}
-                      onKeyDown={(event) => {
-                        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                          event.preventDefault();
-                          void createQuestion();
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="min-h-[32vh] panel-soft text-sm sm:min-h-[38vh]">
-                      {newAnswer.trim() ? (
-                        <MarkdownRenderer>{newAnswer}</MarkdownRenderer>
-                      ) : (
-                        <p className="text-muted-2">暂无内容</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
-                  <textarea
-                    ref={questionAnswerTextareaRef}
-                    className="min-h-[40vh] w-full resize-y panel-soft font-mono text-sm leading-6"
-                    placeholder="参考答案（Markdown）"
-                    value={newAnswer}
-                    onChange={(event) => setNewAnswer(event.target.value)}
-                    spellCheck={false}
-                    onKeyDown={(event) => {
-                      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                        event.preventDefault();
-                        void createQuestion();
-                      }
-                    }}
-                  />
-                  <div className="min-h-[40vh] panel-soft text-sm">
-                    {newAnswer.trim() ? (
-                      <MarkdownRenderer>{newAnswer}</MarkdownRenderer>
-                    ) : (
-                      <p className="text-muted-2">暂无内容</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </section>
+            <MarkdownEditor
+              className="mt-2"
+              value={newAnswer}
+              onChange={setNewAnswer}
+              placeholder="参考答案（Markdown）"
+              submitHint="快捷键: Cmd/Ctrl + Enter 添加题目"
+              onSubmit={() => {
+                void createQuestion();
+              }}
+              mobileMinHeightClass="min-h-[32vh] sm:min-h-[38vh]"
+              desktopMinHeightClass="min-h-[40vh]"
+            />
 
             <button
               className="mt-3 btn-secondary w-full sm:w-auto sm:min-w-28"

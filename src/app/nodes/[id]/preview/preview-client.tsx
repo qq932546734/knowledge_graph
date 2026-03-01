@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { apiFetch } from "@/lib/client/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { MarkdownToc } from "@/components/markdown-toc";
 
 type NodePayload = {
   id: string;
@@ -118,7 +119,16 @@ export default function PreviewClient({ nodeId }: { nodeId: string }) {
       <section className="panel">
         <h3 className="text-lg font-semibold">正文</h3>
         {data.node.contentMd.trim() ? (
-          <MarkdownRenderer className="mt-3">{data.node.contentMd}</MarkdownRenderer>
+          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_16rem]">
+            <MarkdownRenderer className="rounded-xl border border-border bg-card p-3">
+              {data.node.contentMd}
+            </MarkdownRenderer>
+            <MarkdownToc
+              markdown={data.node.contentMd}
+              className="h-fit xl:sticky xl:top-4"
+              title="正文目录"
+            />
+          </div>
         ) : (
           <p className="mt-3 text-sm text-muted">暂无正文内容。</p>
         )}

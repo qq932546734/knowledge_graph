@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { apiFetch } from "@/lib/client/api";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 
 type NodeItem = {
   id: string;
@@ -94,9 +95,9 @@ export default function PracticeNodeClient() {
           </button>
 
           {showAnswer ? (
-            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-lg bg-surface-soft p-3 text-sm">
+            <MarkdownRenderer className="mt-3 rounded-lg border border-border bg-card p-3 text-sm">
               {node.contentMd}
-            </pre>
+            </MarkdownRenderer>
           ) : null}
 
           <textarea

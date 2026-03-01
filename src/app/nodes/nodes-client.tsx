@@ -32,6 +32,7 @@ export default function NodesClient() {
   const [difficulty, setDifficulty] = useState("");
   const [sortBy, setSortBy] = useState("updatedAt");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -72,20 +73,15 @@ export default function NodesClient() {
 
   return (
     <div className="space-y-4 motion-stagger">
-      <section className="panel">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-base font-semibold">筛选与排序</h2>
-            <p className="text-sm text-muted">按关键词、难度和更新时间快速定位知识点</p>
-          </div>
-          <Link href="/nodes/new" className="btn-primary">
-            新建知识点
-          </Link>
+      <section className="panel p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold sm:text-base">筛选与排序</h2>
+          <p className="hidden text-xs text-muted md:block">关键词 / 难度 / 时间排序</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:items-center">
           <input
-            className="input-field"
+            className="input-field h-10"
             placeholder="搜索标题/正文"
             value={keyword}
             onChange={(event) => {
@@ -95,23 +91,7 @@ export default function NodesClient() {
           />
 
           <select
-            className="input-field"
-            value={difficulty}
-            onChange={(event) => {
-              setPage(1);
-              setDifficulty(event.target.value);
-            }}
-          >
-            <option value="">全部难度</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-          </select>
-
-          <select
-            className="input-field"
+            className="input-field h-10"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value)}
           >
@@ -122,14 +102,58 @@ export default function NodesClient() {
           </select>
 
           <select
-            className="input-field"
+            className="input-field h-10"
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value)}
           >
             <option value="desc">降序</option>
             <option value="asc">升序</option>
           </select>
+
+          <button
+            type="button"
+            className="btn-secondary h-10 px-3"
+            aria-expanded={showAdvancedFilters}
+            onClick={() => setShowAdvancedFilters((value) => !value)}
+          >
+            {showAdvancedFilters ? "收起筛选" : "更多筛选"}
+          </button>
+
+          <Link href="/nodes/new" className="btn-primary h-10 px-3">
+            新建知识点
+          </Link>
         </div>
+
+        {showAdvancedFilters ? (
+          <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+            <select
+              className="input-field h-10"
+              value={difficulty}
+              onChange={(event) => {
+                setPage(1);
+                setDifficulty(event.target.value);
+              }}
+            >
+              <option value="">全部难度</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+
+            <button
+              type="button"
+              className="btn-secondary h-10 px-3"
+              onClick={() => {
+                setPage(1);
+                setDifficulty("");
+              }}
+            >
+              清除难度
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className="panel">

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
 
 import { apiFetch } from "@/lib/client/api";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import {
   createEmptyDraftFields,
   draftStorageKey,
@@ -33,19 +34,6 @@ type GraphRelation = {
 type GraphPayload = {
   nodes: GraphNode[];
   relations: GraphRelation[];
-};
-
-type NodePreview = {
-  id: string;
-  title: string;
-  contentMd: string;
-  tags: string[];
-  difficulty: number;
-  sourceUrl: string | null;
-};
-
-type NodePreviewResult = {
-  node: NodePreview;
 };
 
 function splitTags(input: string): string[] {
@@ -78,16 +66,9 @@ export default function RelationsClient() {
   const [editorDifficulty, setEditorDifficulty] = useState("3");
   const [editorSourceUrl, setEditorSourceUrl] = useState("");
   const [editorSaving, setEditorSaving] = useState(false);
-  const [editorMobileTab, setEditorMobileTab] = useState<"edit" | "preview">("edit");
-  const [isMobileLayout, setIsMobileLayout] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
-  const [selectedNodePreview, setSelectedNodePreview] = useState<NodePreview | null>(null);
-  const [selectedNodePreviewLoading, setSelectedNodePreviewLoading] = useState(false);
-  const [selectedNodePreviewError, setSelectedNodePreviewError] = useState<string | null>(null);
-
-  const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const editorFields = useMemo<NodeDraftFields>(
     () => ({
@@ -234,65 +215,6 @@ export default function RelationsClient() {
   const editorHasContent = hasDraftContent(editorFields);
 
   useEffect(() => {
-    if (!selectedNodeId) {
-      setSelectedNodePreview(null);
-      setSelectedNodePreviewLoading(false);
-      setSelectedNodePreviewError(null);
-      return;
-    }
-
-    let canceled = false;
-
-    async function loadSelectedNodePreview() {
-      setSelectedNodePreview(null);
-      setSelectedNodePreviewLoading(true);
-      setSelectedNodePreviewError(null);
-
-      try {
-        const data = await apiFetch<NodePreviewResult>(`/api/nodes/${selectedNodeId}`);
-        if (canceled) {
-          return;
-        }
-
-        setSelectedNodePreview(data.node);
-      } catch (previewError) {
-        if (canceled) {
-          return;
-        }
-
-        setSelectedNodePreview(null);
-        setSelectedNodePreviewError(
-          previewError instanceof Error ? previewError.message : "节点预览加载失败",
-        );
-      } finally {
-        if (!canceled) {
-          setSelectedNodePreviewLoading(false);
-        }
-      }
-    }
-
-    void loadSelectedNodePreview();
-
-    return () => {
-      canceled = true;
-    };
-  }, [selectedNodeId]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const syncLayout = () => {
-      setIsMobileLayout(window.innerWidth < 768);
-    };
-
-    syncLayout();
-    window.addEventListener("resize", syncLayout);
-    return () => window.removeEventListener("resize", syncLayout);
-  }, []);
-
-  useEffect(() => {
     if (!highlightNodeId) {
       return;
     }
@@ -427,7 +349,6 @@ export default function RelationsClient() {
 
     setEditorOpen(false);
     setEditorError(null);
-    setEditorMobileTab("edit");
   }
 
   function openEditor(parentNodeId: string | null, parentTitle: string) {
@@ -461,32 +382,7 @@ export default function RelationsClient() {
     setEditorParentTitle(parentTitle);
     applyEditorFields(nextFields);
     setEditorError(null);
-    setEditorMobileTab("edit");
     setEditorOpen(true);
-  }
-
-  function insertMarkdownSnippet(prefix: string, suffix = "", placeholder = "内容") {
-    const textarea = editorTextareaRef.current;
-
-    if (!textarea) {
-      setEditorContentMd((current) => `${current}${prefix}${placeholder}${suffix}`);
-      return;
-    }
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = editorContentMd.slice(start, end);
-    const wrappedText = `${prefix}${selectedText || placeholder}${suffix}`;
-
-    const next = `${editorContentMd.slice(0, start)}${wrappedText}${editorContentMd.slice(end)}`;
-    setEditorContentMd(next);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      const cursorStart = start + prefix.length;
-      const cursorEnd = cursorStart + (selectedText || placeholder).length;
-      textarea.setSelectionRange(cursorStart, cursorEnd);
-    });
   }
 
   async function createNodeFromEditor() {
@@ -604,7 +500,7 @@ export default function RelationsClient() {
   }
 
   function openNodeDetail(nodeId: string) {
-    router.push(`/nodes/${nodeId}`);
+    router.push(`/nodes/${nodeId}/preview`);
   }
 
   function renderTreeNode(nodeId: string, depth = 0): React.ReactNode {
@@ -742,46 +638,6 @@ export default function RelationsClient() {
           <p className="mt-3 text-sm text-muted">暂无知识点，请先创建根节点。</p>
         )}
 
-        {selectedNode ? (
-          <article className="mt-4 panel-soft">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-medium">节点内容预览</h3>
-                <p className="mt-1 text-xs text-muted">
-                  难度 {selectedNode.difficulty}
-                  {selectedNode.tags.length > 0 ? ` · 标签 ${selectedNode.tags.join("、")}` : ""}
-                </p>
-              </div>
-              <Link href={`/nodes/${selectedNode.id}`} className="text-sm underline">
-                打开完整编辑
-              </Link>
-            </div>
-
-            {selectedNodePreviewLoading ? (
-              <p className="mt-3 text-sm text-muted">预览加载中...</p>
-            ) : selectedNodePreviewError ? (
-              <p className="mt-3 alert-error">{selectedNodePreviewError}</p>
-            ) : selectedNodePreview?.contentMd.trim() ? (
-              <MarkdownRenderer className="mt-3 max-h-[34vh] overflow-auto rounded-lg border border-border bg-card p-3 text-sm">
-                {selectedNodePreview.contentMd}
-              </MarkdownRenderer>
-            ) : (
-              <p className="mt-3 text-sm text-muted">该节点暂无正文内容。</p>
-            )}
-
-            {selectedNodePreview?.sourceUrl ? (
-              <a
-                href={selectedNodePreview.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block text-sm underline"
-              >
-                查看来源链接
-              </a>
-            ) : null}
-          </article>
-        ) : null}
-
         <details className="mt-4 panel-soft">
           <summary className="cursor-pointer text-sm font-medium">
             二级操作（挂接已有节点 / 解除父子关系）
@@ -860,208 +716,116 @@ export default function RelationsClient() {
         </details>
       </section>
 
-      {editorOpen ? (
-        <div className="fixed inset-0 z-50">
-          <button
-            className="absolute inset-0 drawer-mask"
-            onClick={closeEditor}
-            aria-label="关闭新增节点抽屉"
-          />
-
-          <section
-            role="dialog"
-            aria-modal="true"
-            className="drawer-panel absolute inset-y-0 right-0 h-full w-full max-w-5xl overflow-auto border-l border-border bg-card p-4 shadow-2xl sm:p-6"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-semibold">
-                  新增{editorParentNodeId ? "子节点" : "根节点"}
-                </h3>
-                <p className="text-sm text-muted">
-                  目标父节点: {editorParentNodeId ? editorParentTitle : "无（创建根节点）"}
-                </p>
-              </div>
-              <button className="btn-secondary" onClick={closeEditor}>
-                关闭
-              </button>
-            </div>
-
-            {editorError ? <p className="mt-3 alert-error">{editorError}</p> : null}
-
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-sm">标题</span>
-                <input
-                  className="input-field w-full"
-                  value={editorTitle}
-                  onChange={(event) => setEditorTitle(event.target.value)}
-                />
-              </label>
-
-              <label className="space-y-1">
-                <span className="text-sm">难度</span>
-                <select
-                  className="input-field w-full"
-                  value={editorDifficulty}
-                  onChange={(event) => setEditorDifficulty(event.target.value)}
-                >
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                  <option value="5">5</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="mt-3 block space-y-1">
-              <span className="text-sm">标签（逗号分隔）</span>
-              <input
-                className="input-field w-full"
-                value={editorTagsInput}
-                onChange={(event) => setEditorTagsInput(event.target.value)}
+      {editorOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-50">
+              <button
+                className="absolute inset-0 drawer-mask"
+                onClick={closeEditor}
+                aria-label="关闭新增节点抽屉"
               />
-            </label>
 
-            <label className="mt-3 block space-y-1">
-              <span className="text-sm">来源 URL（可空）</span>
-              <input
-                className="input-field w-full"
-                value={editorSourceUrl}
-                onChange={(event) => setEditorSourceUrl(event.target.value)}
-              />
-            </label>
-
-            <section className="mt-4 panel-soft">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">Markdown 正文</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    className="btn-secondary h-9 px-3 text-sm"
-                    onClick={() => insertMarkdownSnippet("## ", "", "二级标题")}
-                  >
-                    标题
-                  </button>
-                  <button
-                    className="btn-secondary h-9 px-3 text-sm"
-                    onClick={() => insertMarkdownSnippet("- ", "", "列表项")}
-                  >
-                    列表
-                  </button>
-                  <button
-                    className="btn-secondary h-9 px-3 text-sm"
-                    onClick={() => insertMarkdownSnippet("```\n", "\n```", "code")}
-                  >
-                    代码块
-                  </button>
-                  <button
-                    className="btn-secondary h-9 px-3 text-sm"
-                    onClick={() => insertMarkdownSnippet("> ", "", "引用")}
-                  >
-                    引用
+              <section
+                role="dialog"
+                aria-modal="true"
+                className="drawer-panel absolute inset-y-0 right-0 h-full w-full max-w-5xl overflow-auto border-l border-border bg-card p-4 shadow-2xl sm:p-6"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-xl font-semibold">
+                      新增{editorParentNodeId ? "子节点" : "根节点"}
+                    </h3>
+                    <p className="text-sm text-muted">
+                      目标父节点: {editorParentNodeId ? editorParentTitle : "无（创建根节点）"}
+                    </p>
+                  </div>
+                  <button className="btn-secondary" onClick={closeEditor}>
+                    关闭
                   </button>
                 </div>
-              </div>
 
-              {isMobileLayout ? (
-                <div className="mt-3 space-y-3">
-                  <div className="flex w-fit rounded-lg border border-border bg-surface p-1">
-                    <button
-                      className={`h-9 rounded-md px-3 text-sm transition-colors ${
-                        editorMobileTab === "edit"
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-strong hover:bg-surface-soft"
-                      }`}
-                      onClick={() => setEditorMobileTab("edit")}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      className={`h-9 rounded-md px-3 text-sm transition-colors ${
-                        editorMobileTab === "preview"
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-strong hover:bg-surface-soft"
-                      }`}
-                      onClick={() => setEditorMobileTab("preview")}
-                    >
-                      预览
-                    </button>
-                  </div>
+                {editorError ? <p className="mt-3 alert-error">{editorError}</p> : null}
 
-                  {editorMobileTab === "edit" ? (
-                    <textarea
-                      ref={editorTextareaRef}
-                      className="min-h-[44vh] w-full resize-y rounded-lg border border-border bg-surface p-3 font-mono text-sm leading-6 sm:min-h-[50vh]"
-                      placeholder="支持 Markdown：# 标题、- 列表、``` 代码块、> 引用..."
-                      value={editorContentMd}
-                      onChange={(event) => setEditorContentMd(event.target.value)}
-                      spellCheck={false}
-                      onKeyDown={(event) => {
-                        if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                          event.preventDefault();
-                          void createNodeFromEditor();
-                        }
-                      }}
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label className="space-y-1">
+                    <span className="text-sm">标题</span>
+                    <input
+                      className="input-field w-full"
+                      value={editorTitle}
+                      onChange={(event) => setEditorTitle(event.target.value)}
                     />
-                  ) : (
-                    <div className="min-h-[44vh] rounded-lg border border-border bg-surface p-3 text-sm sm:min-h-[50vh]">
-                      {editorContentMd.trim() ? (
-                        <MarkdownRenderer>{editorContentMd}</MarkdownRenderer>
-                      ) : (
-                        <p className="text-muted-2">暂无内容</p>
-                      )}
-                    </div>
-                  )}
+                  </label>
+
+                  <label className="space-y-1">
+                    <span className="text-sm">难度</span>
+                    <select
+                      className="input-field w-full"
+                      value={editorDifficulty}
+                      onChange={(event) => setEditorDifficulty(event.target.value)}
+                    >
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                    </select>
+                  </label>
                 </div>
-              ) : (
-                <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <textarea
-                    ref={editorTextareaRef}
-                    className="min-h-[66vh] w-full resize-y rounded-lg border border-border bg-surface p-3 font-mono text-sm leading-6"
-                    placeholder="支持 Markdown：# 标题、- 列表、``` 代码块、> 引用..."
-                    value={editorContentMd}
-                    onChange={(event) => setEditorContentMd(event.target.value)}
-                    spellCheck={false}
-                    onKeyDown={(event) => {
-                      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                        event.preventDefault();
-                        void createNodeFromEditor();
-                      }
-                    }}
+
+                <label className="mt-3 block space-y-1">
+                  <span className="text-sm">标签（逗号分隔）</span>
+                  <input
+                    className="input-field w-full"
+                    value={editorTagsInput}
+                    onChange={(event) => setEditorTagsInput(event.target.value)}
                   />
-                  <div className="min-h-[66vh] rounded-lg border border-border bg-surface p-3 text-sm">
-                    {editorContentMd.trim() ? (
-                      <MarkdownRenderer>{editorContentMd}</MarkdownRenderer>
-                    ) : (
-                      <p className="text-muted-2">暂无内容</p>
-                    )}
+                </label>
+
+                <label className="mt-3 block space-y-1">
+                  <span className="text-sm">来源 URL（可空）</span>
+                  <input
+                    className="input-field w-full"
+                    value={editorSourceUrl}
+                    onChange={(event) => setEditorSourceUrl(event.target.value)}
+                  />
+                </label>
+
+                <MarkdownEditor
+                  className="mt-4"
+                  value={editorContentMd}
+                  onChange={setEditorContentMd}
+                  placeholder="支持 Markdown：# 标题、- 列表、``` 代码块、> 引用、$ 行内公式、$$ 块公式..."
+                  submitHint="草稿自动保存。快捷键: Cmd/Ctrl + Enter 提交"
+                  onSubmit={() => {
+                    void createNodeFromEditor();
+                  }}
+                  mobileMinHeightClass="min-h-[44vh] sm:min-h-[50vh]"
+                  desktopMinHeightClass="min-h-[66vh]"
+                />
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs text-muted-2">
+                    草稿会自动保存到本地（按父节点分桶）。快捷键: Cmd/Ctrl + Enter 提交。
+                  </p>
+
+                  <div className="flex gap-2">
+                    <button className="btn-secondary" onClick={closeEditor} disabled={editorSaving}>
+                      取消
+                    </button>
+                    <button
+                      className="btn-primary disabled:opacity-50"
+                      onClick={() => void createNodeFromEditor()}
+                      disabled={editorSaving}
+                    >
+                      {editorSaving ? "保存中..." : "保存并关闭"}
+                    </button>
                   </div>
                 </div>
-              )}
-            </section>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-2">
-                草稿会自动保存到本地（按父节点分桶）。快捷键: Cmd/Ctrl + Enter 提交。
-              </p>
-
-              <div className="flex gap-2">
-                <button className="btn-secondary" onClick={closeEditor} disabled={editorSaving}>
-                  取消
-                </button>
-                <button
-                  className="btn-primary disabled:opacity-50"
-                  onClick={() => void createNodeFromEditor()}
-                  disabled={editorSaving}
-                >
-                  {editorSaving ? "保存中..." : "保存并关闭"}
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
+              </section>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
