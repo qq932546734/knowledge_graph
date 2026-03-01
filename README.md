@@ -54,6 +54,8 @@ npm install
 cp .env.example .env
 ```
 
+> 如果你在新机器上直接 `npm run dev` 后没有跳转到登录页，通常是因为缺少 `.env`（尤其是 `AUTH_SECRET` 与 `DATABASE_URL`）或数据库尚未初始化。请先完成下面第 3、4 步。
+
 3. 迁移数据库并生成客户端
 
 ```bash
